@@ -96,9 +96,9 @@ def update_reactions(req_id, body):
 
 
 def update_stop_time(req_id, body):
-    update_expression = "SET lastStoppedTime = :currTimestamp"
+    update_expression = "SET lastStoppedTimestamp = :currTimestamp"
     values_for_update_expression = {
-        ":currTimeStamp": get_timestamp()
+        ":currTimestamp": get_timestamp()
     }
 
     update_item_in_table(req_id, get_key_value_for_primary_key(RowKeys.WINDOW.value), update_expression,
