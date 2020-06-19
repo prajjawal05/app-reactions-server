@@ -1,1 +1,1 @@
-tableName = "app-reactions"
+table_name = "app-reactions"

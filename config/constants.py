@@ -1,9 +1,14 @@
 from enum import Enum
+from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
+
+deserializer = TypeDeserializer()
+serializer = TypeSerializer()
+
 
 class RowKeys(Enum):
-    AGGREGATED = "AGGREGATED"
+    WINDOW = "WINDOW"
     CURR_TICK = "CURR_TICK"
-    PREV_TICK = "PREV_TICK"
+
 
 class ReactionTypes(Enum):
     APPRECIATE = "APPRECIATE"
