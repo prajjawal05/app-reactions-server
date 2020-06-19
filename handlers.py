@@ -14,9 +14,9 @@ def _update_window(req_id, window_reactions_doc, curr_tick_reactions_doc, operat
     }
 
     for reaction_type in ReactionTypes:
-        window_reactions_doc[reaction_type.value].append(curr_tick_reactions_doc[reaction_type.value])
         if len(window_reactions_doc[reaction_type.value]) > 0:
             window_reactions_doc[reaction_type.value].pop(0)
+        window_reactions_doc[reaction_type.value].append(curr_tick_reactions_doc[reaction_type.value])
         update_expressions.append("{r} = :{r}".format(r=reaction_type.value))
         values_for_update_expression[reaction_type.value] = window_reactions_doc[reaction_type.value]
 
