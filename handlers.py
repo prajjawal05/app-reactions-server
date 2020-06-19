@@ -1,6 +1,7 @@
+import json
 from functools import reduce
 from botocore.exceptions import ClientError
-from app_utils.index import get_key_value_for_primary_key, get_timestamp, deserialize_db_objects
+from app_utils.index import get_key_value_for_primary_key, get_timestamp, DecimalEncoder
 from app_utils.logging import log_line
 from config.constants import ReactionTypes, RowKeys
 from db_layer import get_items_from_table, update_item_in_table, update_item_in_table_conditionally
@@ -73,7 +74,7 @@ def _sum_up_reactions(window_reactions_doc, curr_tick_reactions_doc):
                   ReactionTypes, {})
 
 
-def get_reactions(req_id):
+def get_reactions(req_id, body):
     window_reactions_doc, curr_tick_reactions_doc = get_items_from_table(req_id)
     curr_timestamp = get_timestamp()
     aggregated_reactions = _sum_up_reactions(window_reactions_doc, curr_tick_reactions_doc)
@@ -82,7 +83,8 @@ def get_reactions(req_id):
         'lastUpdatedTimestamp'] > 1000:
         _try_updating_window_and_resetting_tick(req_id, window_reactions_doc, curr_tick_reactions_doc, curr_timestamp)
 
-    return {**aggregated_reactions, "lastStoppedTime": window_reactions_doc["lastStoppedTimestamp"]}
+    return json.dumps({**aggregated_reactions, "lastStoppedTime": window_reactions_doc["lastStoppedTimestamp"]},
+                      cls=DecimalEncoder)
 
 
 def update_reactions(req_id, body):
@@ -91,7 +93,7 @@ def update_reactions(req_id, body):
     return "SUCCESS"
 
 
-def update_stop_time(req_id):
+def update_stop_time(req_id, body):
     update_expression = "SET lastStoppedTime = :currTimestamp"
     values_for_update_expression = {
         ":currTimeStamp": get_timestamp()
