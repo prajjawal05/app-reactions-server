@@ -10,17 +10,19 @@ from db_layer import get_items_from_table, update_item_in_table, update_item_in_
 def _update_window(req_id, window_reactions_doc, curr_tick_reactions_doc, operation_timestamp):
     update_expressions = []
     values_for_update_expression = {
-        ":lastUpdatedTimestamp": operation_timestamp
+        ":lastUpdatedTimestamp": operation_timestamp,
+        ":isCurrentlyUpdating": False
     }
 
     for reaction_type in ReactionTypes:
-        if len(window_reactions_doc[reaction_type.value]) > 0:
+        if len(window_reactions_doc[reaction_type.value]) >= 4:
             window_reactions_doc[reaction_type.value].pop(0)
         window_reactions_doc[reaction_type.value].append(curr_tick_reactions_doc[reaction_type.value])
         update_expressions.append("{r} = :{r}".format(r=reaction_type.value))
         values_for_update_expression[":{}".format(reaction_type.value)] = window_reactions_doc[reaction_type.value]
 
-    update_expression = "SET {}, lastUpdatedTimestamp = :lastUpdatedTimestamp".format(", ".join(update_expressions))
+    update_expression = "SET {}, lastUpdatedTimestamp = :lastUpdatedTimestamp, isCurrentlyUpdating=:isCurrentlyUpdating".format(
+        ", ".join(update_expressions))
 
     update_item_in_table(req_id, get_key_value_for_primary_key(RowKeys.WINDOW.value), update_expression,
                          values_for_update_expression)
@@ -80,7 +82,7 @@ def get_reactions(req_id, body):
     aggregated_reactions = _sum_up_reactions(window_reactions_doc, curr_tick_reactions_doc)
 
     if not window_reactions_doc["isCurrentlyUpdating"] or curr_timestamp - window_reactions_doc[
-        'lastUpdatedTimestamp'] > 1000:
+        'lastUpdatedTimestamp'] > 1:
         _try_updating_window_and_resetting_tick(req_id, window_reactions_doc, curr_tick_reactions_doc, curr_timestamp)
 
     return json.dumps({**aggregated_reactions, "lastStoppedTime": window_reactions_doc["lastStoppedTimestamp"]},
