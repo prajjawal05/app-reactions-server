@@ -1,4 +1,5 @@
 import boto3
+from app_utils.index import serialize_to_db_objects, deserialize_db_objects
 from app_utils.logging import log_line
 from config.constants import RowKeys
 from config.env import table_name
@@ -28,17 +29,41 @@ def get_items_from_table(req_id):
         }
     )['Responses'][table_name]
 
-    return response_array
+    window_record = ""
+    curr_tick_record = ""
+    for serialised_response in response_array:
+        response = deserialize_db_objects(serialised_response)
+        if response['dataType'] == RowKeys.WINDOW.value:
+            window_record = response
+        else:
+            curr_tick_record = response
+
+    return window_record, curr_tick_record
 
 
-def update_item_in_table(req_id, key, update_expression, values_for_update_expression, condition_to_check=""):
+def update_item_in_table_conditionally(req_id, key, update_expression, values_for_update_expression,
+                                       condition_to_check):
     log_line(req_id,
              "Updating TableName: {} Key: {} Update Expression: {} Values To Update: {} Condition To Check :{}".format(
-                 table_name, key, update_expression,
-                 values_for_update_expression, condition_to_check))
-    _get_client().Table(table_name).update_item(
-        Key=key,
+                 table_name, serialize_to_db_objects(key), update_expression,
+                 serialize_to_db_objects(values_for_update_expression), condition_to_check))
+    _get_client().update_item(
+        TableName=table_name,
+        Key=serialize_to_db_objects(key),
         UpdateExpression=update_expression,
-        ExpressionAttributeValues=values_for_update_expression,
+        ExpressionAttributeValues=serialize_to_db_objects(values_for_update_expression),
         ConditionExpression=condition_to_check
+    )
+
+
+def update_item_in_table(req_id, key, update_expression, values_for_update_expression):
+    log_line(req_id,
+             "Updating TableName: {} Key: {} Update Expression: {} Values To Update: {}".format(
+                 table_name, serialize_to_db_objects(key), update_expression,
+                 serialize_to_db_objects(values_for_update_expression)))
+    _get_client().update_item(
+        TableName=table_name,
+        Key=serialize_to_db_objects(key),
+        UpdateExpression=update_expression,
+        ExpressionAttributeValues=serialize_to_db_objects(values_for_update_expression)
     )

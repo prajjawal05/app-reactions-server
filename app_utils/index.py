@@ -15,5 +15,11 @@ def get_timestamp():
 
 def deserialize_db_objects(db_object):
     return {
-        k: deserializer.deserialize(v) for k,v in db_object.items()
+        k: deserializer.deserialize(v) for k, v in db_object.items()
+    }
+
+
+def serialize_to_db_objects(data_object):
+    return {
+        k: serializer.serialize(v) for k, v in data_object.items()
     }

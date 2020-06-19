@@ -1,10 +1,9 @@
 from functools import reduce
-from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 from app_utils.index import get_key_value_for_primary_key, get_timestamp, deserialize_db_objects
 from app_utils.logging import log_line
 from config.constants import ReactionTypes, RowKeys
-from db_layer import get_items_from_table, update_item_in_table
+from db_layer import get_items_from_table, update_item_in_table, update_item_in_table_conditionally
 
 
 def _update_window(req_id, window_reactions_doc, curr_tick_reactions_doc, operation_timestamp):
@@ -18,7 +17,7 @@ def _update_window(req_id, window_reactions_doc, curr_tick_reactions_doc, operat
             window_reactions_doc[reaction_type.value].pop(0)
         window_reactions_doc[reaction_type.value].append(curr_tick_reactions_doc[reaction_type.value])
         update_expressions.append("{r} = :{r}".format(r=reaction_type.value))
-        values_for_update_expression[reaction_type.value] = window_reactions_doc[reaction_type.value]
+        values_for_update_expression[":{}".format(reaction_type.value)] = window_reactions_doc[reaction_type.value]
 
     update_expression = "SET {}, lastUpdatedTimestamp = :lastUpdatedTimestamp".format(", ".join(update_expressions))
 
@@ -43,13 +42,13 @@ def _update_reactions_for_curr_tick_in_table(req_id, reactions, op_type):
 
 
 def _mark_window_as_in_progress(req_id):
+    condition_to_check = "isCurrentlyUpdating <> :isCurrentlyUpdating"
     update_expression = "SET isCurrentlyUpdating = :isCurrentlyUpdating"
     values_for_update_expression = {
         ":isCurrentlyUpdating": True
     }
-    condition_to_check = Attr('isCurrentlyUpdating').eq(False)
-    update_item_in_table(req_id, get_key_value_for_primary_key(RowKeys.WINDOW.value), update_expression,
-                         values_for_update_expression, condition_to_check)
+    update_item_in_table_conditionally(req_id, get_key_value_for_primary_key(RowKeys.WINDOW.value), update_expression,
+                                       values_for_update_expression, condition_to_check)
 
 
 def _try_updating_window_and_resetting_tick(req_id, window_reactions_doc, curr_tick_reactions_doc, operation_timestamp):
@@ -63,7 +62,7 @@ def _try_updating_window_and_resetting_tick(req_id, window_reactions_doc, curr_t
 
 
 def _aggregate_reaction(acc, reaction_type, window_reaction, curr_tick_reaction):
-    acc[reaction_type] = reduce(lambda x,y: x+y, window_reaction) + curr_tick_reaction
+    acc[reaction_type] = reduce(lambda x, y: x + y, window_reaction, 0) + curr_tick_reaction
     return acc
 
 
@@ -75,17 +74,15 @@ def _sum_up_reactions(window_reactions_doc, curr_tick_reactions_doc):
 
 
 def get_reactions(req_id):
-    serialised_window_reactions, serialised_curr_tick_reactions = get_items_from_table(req_id)
+    window_reactions_doc, curr_tick_reactions_doc = get_items_from_table(req_id)
     curr_timestamp = get_timestamp()
-    window_reactions_doc = deserialize_db_objects(serialised_window_reactions)
-    curr_tick_reactions_doc = deserialize_db_objects(serialised_curr_tick_reactions)
     aggregated_reactions = _sum_up_reactions(window_reactions_doc, curr_tick_reactions_doc)
 
     if not window_reactions_doc["isCurrentlyUpdating"] or curr_timestamp - window_reactions_doc[
         'lastUpdatedTimestamp'] > 1000:
-        _try_updating_window_and_resetting_tick(window_reactions_doc, curr_tick_reactions_doc, curr_timestamp)
+        _try_updating_window_and_resetting_tick(req_id, window_reactions_doc, curr_tick_reactions_doc, curr_timestamp)
 
-    return aggregated_reactions
+    return {**aggregated_reactions, "lastStoppedTime": window_reactions_doc["lastStoppedTimestamp"]}
 
 
 def update_reactions(req_id, body):
