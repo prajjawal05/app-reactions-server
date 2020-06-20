@@ -12,13 +12,19 @@ op_func_map = {
 
 def lambda_handler(event, context):
     req_id = getrandbits(32)
+    print("Event: {} ReqId: {}".format(event, req_id))
     operation_type = event['queryStringParameters']['op']
-    body = json.loads(event['body'])
+    body = json.loads(event["body"])
 
-    log_line(req_id, "Body: {} OperationType: {}".format(body, operation_type))
-    response_body = op_func_map[operation_type](req_id, body)
-
-    return {
-        'statusCode': 200,
-        'body': response_body
-    }
+    try: 
+        log_line(req_id, "Body: {} OperationType: {}".format(body, operation_type))
+        response_body = op_func_map[operation_type](req_id, body)
+        return {
+            'statusCode': 200,
+            'body': response_body
+        }
+    except:
+        return {
+            'statusCode': 200,
+            'body': req_id
+        }

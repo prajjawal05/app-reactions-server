@@ -29,17 +29,25 @@ def _update_window(req_id, window_reactions_doc, curr_tick_reactions_doc, operat
 
 
 def _update_reactions_for_curr_tick_in_table(req_id, reactions, op_type):
-    print(reactions)
     update_expressions = []
+    
+    print("Updating Curr Tick: {}".format(req_id))
     for reactionType in ReactionTypes:
+        print("Appending: {}".format(req_id))
         update_expressions.append("{r} = {r} {op_type} :{r}".format(r=reactionType.value, op_type=op_type))
+        print("Update Expressions: {}".format(update_expressions))
 
     update_expression = "SET {}".format(", ".join(update_expressions))
 
-    values_for_update_expression = dict(reduce(lambda acc, reactionType:
-                                               acc + [
-                                                   (":{}".format(reactionType.value), reactions[reactionType.value])],
-                                               ReactionTypes, []))
+    print("Updating Curr Tick update_expressions: {}".format(update_expression))
+    try:
+        values_for_update_expression = dict(reduce(lambda acc, reactionType:
+                                                   acc + [
+                                                       (":{}".format(reactionType.value), reactions[reactionType.value])],
+                                                   ReactionTypes, []))
+    except Exception as e:
+        print("Error {}".format(e))
+    print("Updating Table: {}".format(values_for_update_expression))
 
     update_item_in_table(req_id, get_key_value_for_primary_key(RowKeys.CURR_TICK.value), update_expression,
                          values_for_update_expression)
@@ -78,6 +86,7 @@ def _sum_up_reactions(window_reactions_doc, curr_tick_reactions_doc):
 
 
 def _get_aggregated_reactions(req_id):
+    print("Get aggregations".format(req_id))
     window_reactions_doc, curr_tick_reactions_doc = get_items_from_table(req_id)
     aggregated_reactions = _sum_up_reactions(window_reactions_doc, curr_tick_reactions_doc)
     return aggregated_reactions
@@ -96,6 +105,7 @@ def maintain_window(req_id, body):
 
 
 def update_reactions(req_id, reactions):
+    print("Update Aggreagations: {}".format(req_id))
     _update_reactions_for_curr_tick_in_table(req_id, reactions, "+")
     return _get_aggregated_reactions(req_id)
 
