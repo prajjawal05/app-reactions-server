@@ -29,6 +29,7 @@ def _update_window(req_id, window_reactions_doc, curr_tick_reactions_doc, operat
 
 
 def _update_reactions_for_curr_tick_in_table(req_id, reactions, op_type):
+    print(reactions)
     update_expressions = []
     for reactionType in ReactionTypes:
         update_expressions.append("{r} = {r} {op_type} :{r}".format(r=reactionType.value, op_type=op_type))
@@ -76,10 +77,15 @@ def _sum_up_reactions(window_reactions_doc, curr_tick_reactions_doc):
                   ReactionTypes, {})
 
 
-def get_reactions(req_id, body):
+def _get_aggregated_reactions(req_id):
     window_reactions_doc, curr_tick_reactions_doc = get_items_from_table(req_id)
-    curr_timestamp = get_timestamp()
     aggregated_reactions = _sum_up_reactions(window_reactions_doc, curr_tick_reactions_doc)
+    return aggregated_reactions
+
+
+def maintain_window(req_id, body):
+    aggregated_reactions = _get_aggregated_reactions(req_id)
+    curr_timestamp = get_timestamp()
 
     if not window_reactions_doc["isCurrentlyUpdating"] or curr_timestamp - window_reactions_doc[
         'lastUpdatedTimestamp'] > 1:
@@ -89,10 +95,9 @@ def get_reactions(req_id, body):
                       cls=DecimalEncoder)
 
 
-def update_reactions(req_id, body):
-    reactions = body['reactions']
+def update_reactions(req_id, reactions):
     _update_reactions_for_curr_tick_in_table(req_id, reactions, "+")
-    return "SUCCESS"
+    return _get_aggregated_reactions(req_id)
 
 
 def update_stop_time(req_id, body):
