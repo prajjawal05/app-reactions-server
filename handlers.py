@@ -89,11 +89,11 @@ def _get_aggregated_reactions(req_id):
     print("Get aggregations".format(req_id))
     window_reactions_doc, curr_tick_reactions_doc = get_items_from_table(req_id)
     aggregated_reactions = _sum_up_reactions(window_reactions_doc, curr_tick_reactions_doc)
-    return aggregated_reactions
+    return aggregated_reactions, window_reactions_doc, curr_tick_reactions_doc
 
 
 def maintain_window(req_id, body):
-    aggregated_reactions = _get_aggregated_reactions(req_id)
+    aggregated_reactions, window_reactions_doc, curr_tick_reactions_doc = _get_aggregated_reactions(req_id)
     curr_timestamp = get_timestamp()
 
     if not window_reactions_doc["isCurrentlyUpdating"] or curr_timestamp - window_reactions_doc[
@@ -107,7 +107,9 @@ def maintain_window(req_id, body):
 def update_reactions(req_id, reactions):
     print("Update Aggreagations: {}".format(req_id))
     _update_reactions_for_curr_tick_in_table(req_id, reactions, "+")
-    return _get_aggregated_reactions(req_id)
+    aggregated_reactions, window_reactions_doc, curr_tick_reactions_doc = _get_aggregated_reactions(req_id)
+    return json.dumps({**aggregated_reactions, "lastStoppedTime": window_reactions_doc["lastStoppedTimestamp"]},
+                      cls=DecimalEncoder)
 
 
 def update_stop_time(req_id, body):
