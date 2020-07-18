@@ -1,12 +1,11 @@
 import json
 from random import getrandbits
 from app_utils.logging import log_line
-from handlers import maintain_window, update_reactions, update_stop_time
+from handlers import get_choices, update_choices
 
 op_func_map = {
-    "maintain": maintain_window,
-    "update": update_reactions,
-    "stop": update_stop_time
+    "update": update_choices,
+    "get": get_choices
 }
 
 
@@ -25,6 +24,6 @@ def lambda_handler(event, context):
         }
     except:
         return {
-            'statusCode': 200,
+            'statusCode': 500,
             'body': req_id
         }

@@ -24,36 +24,16 @@ def get_items_from_table(req_id):
                         'S': rowKey.value
                     }
                 }, RowKeys)),
-                'ConsistentRead': True
+                'ConsistentRead': False
             }
         }
     )['Responses'][table_name]
 
-    window_record = ""
     curr_tick_record = ""
     for serialised_response in response_array:
-        response = deserialize_db_objects(serialised_response)
-        if response['dataType'] == RowKeys.WINDOW.value:
-            window_record = response
-        else:
-            curr_tick_record = response
+        curr_tick_record = deserialize_db_objects(serialised_response)
 
-    return window_record, curr_tick_record
-
-
-def update_item_in_table_conditionally(req_id, key, update_expression, values_for_update_expression,
-                                       condition_to_check):
-    log_line(req_id,
-             "Updating TableName: {} Key: {} Update Expression: {} Values To Update: {} Condition To Check :{}".format(
-                 table_name, serialize_to_db_objects(key), update_expression,
-                 serialize_to_db_objects(values_for_update_expression), condition_to_check))
-    _get_client().update_item(
-        TableName=table_name,
-        Key=serialize_to_db_objects(key),
-        UpdateExpression=update_expression,
-        ExpressionAttributeValues=serialize_to_db_objects(values_for_update_expression),
-        ConditionExpression=condition_to_check
-    )
+    return curr_tick_record
 
 
 def update_item_in_table(req_id, key, update_expression, values_for_update_expression):

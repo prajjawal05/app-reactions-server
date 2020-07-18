@@ -6,7 +6,6 @@ serializer = TypeSerializer()
 
 
 class RowKeys(Enum):
-    WINDOW = "WINDOW"
     CURR_TICK = "CURR_TICK"
 
 
